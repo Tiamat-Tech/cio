@@ -21,7 +21,7 @@ use gsuite_api::types::{
     Building as GSuiteBuilding, CalendarResource as GSuiteCalendarResource, Group as GSuiteGroup, User as GSuiteUser,
 };
 use gusto_api::Client as Gusto;
-use log::{info, warn};
+use log::{error, info, warn};
 use macros::db;
 use schemars::JsonSchema;
 use sendgrid_api::{traits::MailOps, Client as SendGrid};
@@ -2592,17 +2592,25 @@ pub async fn refresh_db_configs_and_airtable(db: &Database, company: &Company, c
 
     // Sync buildings.
     // Syncing buildings must happen before we sync resource.
-    sync_buildings(db, configs.buildings, company).await?;
+    if let Err(err) = sync_buildings(db, configs.buildings, company).await {
+        error!("Failed to sync buildings: {:?}", err);
+    }
 
     // Sync resources.
-    sync_resources(db, configs.resources, company).await?;
+    if let Err(err) = sync_resources(db, configs.resources, company).await {
+        error!("Failed to sync resources: {:?}", err);
+    }
 
     // Sync groups.
     // Syncing groups must happen before we sync the users.
-    sync_groups(db, configs.groups, company).await?;
+    if let Err(err) = sync_groups(db, configs.groups, company).await {
+        error!("Failed to sync groups: {:?}", err);
+    }
 
     // Sync users.
-    sync_users(db, &github, configs.users, company, config).await?;
+    if let Err(err) = sync_users(db, &github, configs.users, company, config).await {
+        error!("Failed to sync users: {:?}", err);
+    }
 
     // Sync links.
     let (links, certs, ann) = tokio::join!(
